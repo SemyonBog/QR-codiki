@@ -1,7 +1,7 @@
 import qrcode
 import os
 
-data = "Обычный QR-код"
+data = "https://example.com"
 
 fill_color = (0, 0, 0) #Цвет кода
 back_color = (255, 255, 255) #Цвет фона
