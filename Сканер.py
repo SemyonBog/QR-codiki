@@ -6,52 +6,108 @@ import socket
 import validators
 import tldextract
 import ipaddress
+import re
 from datetime import datetime
 from urllib.parse import urlparse
+from html import unescape
 
 #НАСТРОЙКИ
 
-SUSPICIOUS_KEYWORDS = [
+#Подозрительные слова в URL
+SUSPICIOUS_URL_KEYWORDS = [
     "login", "signin", "sign-in", "verify", "verification",
     "account", "update", "secure", "banking", "confirm",
     "password", "credential", "suspend", "unlock", "alert",
-    "paypal"
+    "paypal", "payments"
+]
+
+#Подозрительные слова на странице
+SUSPICIOUS_PAGE_KEYWORDS = [
+    #Формы ввода данных
+    "enter your password",
+    "enter your credit card",
+    "enter your card number",
+    "введите пароль",
+    "введите номер карты",
+    "введите код из смс",
+    "введите cvv",
+
+    #Угрозы
+    "your account has been suspended",
+    "your account will be closed",
+    "your account has been compromised",
+    "unusual activity detected",
+    "unauthorized access",
+    "suspicious activity",
+    "ваш аккаунт заблокирован",
+    "подозрительная активность",
+
+    #Срочность
+    "verify immediately",
+    "act now",
+    "urgent action required",
+    "expires in 24 hours",
+    "last warning",
+    "срочно подтвердите",
+
+    #Запрос данных
+    "social security number",
+    "date of birth",
+    "mother's maiden name",
+    "pin code",
+    "cvv",
+    "card number",
+    "card expiration",
+    "billing address",
+
+    #Фишинговые призывы
+    "click here to verify",
+    "click here to confirm",
+    "click here to unlock",
+    "click below to restore",
+    "confirm your identity",
+    "verify your identity",
+    "update your payment",
+    "update your information",
+    "restore access",
+    "recover your account",
+    "подтвердите вашу личность",
+    "восстановите доступ",
 ]
 
 POPULAR_BRANDS = [
-    "google", "facebook", "apple", "microsoft", "amazon", "paypal", "netflix", "instagram",
-    "twitter", "linkedin", "github", "youtube", "whatsapp", "telegram", "yahoo", "outlook",
-    "sberbank", "tinkoff", "vtb", "gosuslugi", "yandex", "mail", "vk", "snapchat", "tiktok",
-    "discord", "spotify", "pinterest", "reddit", "twitch", "steam", "epicgames", "roblox",
-    "dropbox", "icloud", "onedrive", "adobe", "zoom", "skype", "slack", "trello", "notion",
-    "wordpress", "cloudflare", "godaddy", "namecheap", "shopify", "ebay", "aliexpress",
-    "alibaba", "walmart", "target", "costco", "bestbuy", "samsung", "huawei", "xiaomi",
-    "oneplus", "sony", "nvidia", "intel", "amd", "oracle", "ibm", "cisco", "vmware",
-    "chase", "wellsfargo", "bankofamerica", "citibank", "hsbc", "barclays", "revolut",
-    "binance", "coinbase", "kraken", "blockchain", "metamask", "trustwallet", "ledger",
-    "uber", "lyft", "airbnb", "booking", "trivago", "expedia", "fedex", "dhl", "ups",
-    "usps", "hbo", "disneyplus", "primevideo", "hulu", "crunchyroll", "deezer",
-    "openai", "chatgpt", "midjourney", "canva", "figma", "atlassian", "jira", "github",
-    "gitlab", "bitbucket", "stackoverflow", "docker", "kubernetes", "aws", "azure", "gcloud",
-    "ozon", "wildberries", "avito", "cian", "pochta", "alfabank", "raiffeisen", "mts",
-    "megafon", "beeline", "rostelecom", "okko", "kinopoisk", "rutube", "gazprom", "rosneft"
+    "google", "facebook", "apple", "microsoft", "amazon",
+    "paypal", "netflix", "instagram", "twitter", "linkedin",
+    "github", "youtube", "whatsapp", "telegram", "yahoo",
+    "outlook", "sberbank", "tinkoff", "vtb", "gosuslugi",
+    "yandex", "mail", "vk", "snapchat", "tiktok", "discord",
+    "spotify", "pinterest", "reddit", "twitch", "steam",
+    "epicgames", "roblox", "dropbox", "icloud", "onedrive",
+    "adobe", "zoom", "skype", "slack", "trello", "notion",
+    "wordpress", "cloudflare", "godaddy", "namecheap",
+    "shopify", "ebay", "aliexpress", "alibaba", "walmart",
+    "samsung", "huawei", "xiaomi", "sony", "nvidia", "intel",
+    "chase", "wellsfargo", "bankofamerica", "citibank",
+    "hsbc", "barclays", "revolut", "binance", "coinbase",
+    "kraken", "blockchain", "metamask", "trustwallet",
+    "uber", "airbnb", "booking", "fedex", "dhl", "ups",
+    "openai", "chatgpt", "midjourney", "canva", "figma",
+    "aws", "azure", "ozon", "wildberries", "avito",
+    "alfabank", "raiffeisen", "mts", "megafon", "beeline",
 ]
 
 SHORTENERS = [
-    "bit.ly","tinyurl.com","t.co","goo.gl","is.gd","cutt.ly","ow.ly",
-    "buff.ly","adf.ly","bit.do","shorte.st", "bc.vc",
-    "j.mp","rb.gy","clck.ru","qps.ru","v.gd","v.ht","x.co","x.gd","u.to",
-    "0rz.tw","1url.com","2.gp","2tu.us","s.coop","s.id","t.me","youtu.be","fb.me",
-    "amzn.to", "amzn.eu","apple.co","msft.it", "aka.ms", "lin.ee", "pin.it", "redd.it", "spoti.fi",
-    "vk.cc", "g.co", "forms.gle", "maps.app.goo.gl", "cli.re", "mcaf.ee",
-    "smarturl.it","linktr.ee", "hubs.ly", "shor.by", "linkr.it",
-    "lnkd.in", "rebrand.ly","bl.ink","short.io","t2m.io","urlzs.com","hyperurl.co",
-    "trib.al","dlvr.it","ift.tt", "tiny.cc","tiny.one","shorturl.at","shorturl.me",
-    "shrtco.de","ouo.io","za.gl","han.gl","urls.fr","u.nu","kutt.it","snip.ly","soo.gd",
-    "clicky.me","budurl.com","qr.ae","lc.chat","shorten.rest","linkbucks.com","ay.gy",
-    "adfoc.us","sh.st","gestyy.com","exe.io","fc.lc","shrink.pe","cpmlink.net","srt.lt","link1s.com",
-    "cut-urls.com","shrinke.me","ouo.press","clicksfly.com","clck.ru", "vk.cc", "qps.ru",
-    "to.click","cc.st","u.to","sbly.link",
+    "bit.ly", "tinyurl.com", "t.co", "goo.gl", "is.gd",
+    "cutt.ly", "ow.ly", "buff.ly", "adf.ly", "bit.do",
+    "shorte.st", "bc.vc", "j.mp", "rb.gy", "clck.ru",
+    "qps.ru", "v.gd", "v.ht", "x.co", "youtu.be", "fb.me",
+    "amzn.to", "amzn.eu", "apple.co", "msft.it", "aka.ms",
+    "pin.it", "redd.it", "spoti.fi", "vk.cc", "g.co",
+    "forms.gle", "cli.re", "mcaf.ee", "smarturl.it",
+    "linktr.ee", "hubs.ly", "lnkd.in", "rebrand.ly",
+    "bl.ink", "short.io", "t2m.io", "tiny.cc", "tiny.one",
+    "shorturl.at", "shorturl.me", "ouo.io", "kutt.it",
+    "snip.ly", "soo.gd", "dlvr.it", "ift.tt",
 ]
 
 MAX_RISK_SCORE = 20
@@ -60,7 +116,12 @@ MAX_RISK_SCORE = 20
 
 def scan_qr_from_camera():
     cap = cv2.VideoCapture(0, cv2.CAP_DSHOW)
-    print("Наведите камеру на QR-код")
+
+    if not cap.isOpened():
+        print("❌ Не удалось открыть камеру.")
+        return None
+
+    print("📷 Камера запущена. Наведите на QR-код...")
 
     while True:
         ret, frame = cap.read()
@@ -112,8 +173,6 @@ def check_ssl_certificate(domain):
         return None
 
 
-
-
 def check_brand_impersonation(domain):
     extracted = tldextract.extract(domain)
     domain_name = extracted.domain
@@ -139,14 +198,92 @@ def check_idn_attack(domain):
             return True
     except:
         pass
-
     return False
 
-#АНАЛИЗ
+def clean_html(html):
+    text = re.sub(r'<script[^>]*>.*?</script>', '', html, flags=re.DOTALL | re.IGNORECASE)
+    text = re.sub(r'<style[^>]*>.*?</style>', '', text, flags=re.DOTALL | re.IGNORECASE)
+    text = re.sub(r'<[^>]+>', ' ', text)
+    text = unescape(text)
+    text = re.sub(r'\s+', ' ', text)
+    return text.lower()
+
+def fetch_page(url):
+    try:
+        response = requests.get(
+            url,
+            timeout=5,
+            allow_redirects=True,
+            headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}
+        )
+        return response, response.text
+    except requests.RequestException:
+        return None, None
+
+
+def check_page_content(html):
+    results = []
+    risk_score = 0
+
+    page_text = clean_html(html)
+    html_lower = html.lower()
+
+    # 1. Подозрительные фразы на странице
+    found_keywords = []
+    for keyword in SUSPICIOUS_PAGE_KEYWORDS:
+        if keyword.lower() in page_text:
+            found_keywords.append(keyword)
+
+    if found_keywords:
+        results.append(f"🚨 Подозрительные фразы на странице ({len(found_keywords)}):")
+        for kw in found_keywords[:5]:
+            results.append(f"   → \"{kw}\"")
+        if len(found_keywords) > 5:
+            results.append(f"   ... и ещё {len(found_keywords) - 5}")
+        risk_score += min(len(found_keywords) * 2, 8)
+    else:
+        results.append("✅ Подозрительных фраз на странице не найдено")
+
+    # 2. Формы ввода пароля
+    password_inputs = re.findall(
+        r'<input[^>]*type\s*=\s*["\']password["\'][^>]*>',
+        html_lower
+    )
+    if password_inputs:
+        results.append(f"⚠️ Найдено полей ввода пароля: {len(password_inputs)}")
+        risk_score += 2
+
+    # 3. Скрытые iframe
+    hidden_iframes = re.findall(
+        r'<iframe[^>]*(hidden|display\s*:\s*none|width\s*=\s*["\']?0|height\s*=\s*["\']?0)[^>]*>',
+        html_lower
+    )
+    if hidden_iframes:
+        results.append("🚨 Обнаружены скрытые iframe")
+        risk_score += 3
+
+    # 4. Подозрительные скрипты
+    external_scripts = re.findall(r'<script[^>]*src\s*=\s*["\']([^"\']+)["\']', html_lower)
+    suspicious_scripts = [s for s in external_scripts if any(
+        sh in s for sh in ["pastebin", "raw.githubusercontent", "ngrok", "serveo"]
+    )]
+    if suspicious_scripts:
+        results.append(f"🚨 Подозрительные внешние скрипты: {len(suspicious_scripts)}")
+        risk_score += 3
+
+    # 5. Отправка данных на другой сервер
+    form_actions = re.findall(r'<form[^>]*action\s*=\s*["\']([^"\']+)["\']', html_lower)
+    external_forms = [a for a in form_actions if a.startswith("http")]
+    if external_forms:
+        results.append("⚠️ Форма отправляет данные на внешний сервер")
+        risk_score += 2
+
+    return results, risk_score
 
 def analyze_url(url):
     if not validators.url(url):
         return {"error": "Невалидный URL"}
+
     results = []
     risk_score = 0
 
@@ -154,75 +291,86 @@ def analyze_url(url):
     extracted = tldextract.extract(url)
     domain = f"{extracted.domain}.{extracted.suffix}"
 
-    #SSL
-    if not check_ssl_certificate(domain):
+    # 6. SSL
+    ssl_result = check_ssl_certificate(parsed.hostname or domain)
+    if ssl_result is False:
         results.append("🚨 Проблема с SSL сертификатом")
+        risk_score += 3
+    elif ssl_result is None:
+        results.append("⚠️ Не удалось проверить SSL")
         risk_score += 2
     else:
         results.append("✅ SSL сертификат валиден")
 
-    #IP вместо домена
+    # 7. IP вместо домена
     if is_ip_address(url):
         results.append("⚠️ Используется IP вместо домена")
-        risk_score += 3
+        risk_score += 2
     else:
         results.append("✅ IP не используется")
 
-    #Shorteners
+    # 8. Сокращатели
     full_host = parsed.hostname
     if full_host in SHORTENERS or domain in SHORTENERS:
         results.append("🚨 Используется сокращение ссылок")
         risk_score += 5
     else:
-        results.append("✅ Сокращение не используются")
+        results.append("✅ Сокращение не используется")
 
-    #Подозрительные слова
-    for word in SUSPICIOUS_KEYWORDS:
+    # 9. Подозрительные слова В URL
+    url_keywords_found = []
+    for word in SUSPICIOUS_URL_KEYWORDS:
         if word in url.lower():
-            results.append(f"⚠️ Подозрительное слово: {word}")
-            risk_score += 1
+            url_keywords_found.append(word)
+    if url_keywords_found:
+        results.append(f"⚠️ Подозрительные слова в URL: {', '.join(url_keywords_found)}")
+        risk_score += len(url_keywords_found)
 
-    #Маскировка под бренд
+    # 10. Маскировка под бренд
     brand = check_brand_impersonation(domain)
     if brand:
         results.append(f"🚨 Возможная маскировка под бренд: {brand}")
         risk_score += 5
 
-    #Омографы
+    # 11. Омографы
     if check_idn_attack(domain):
-        results.append("🚨 Возможное использование омографов"
-                       "")
+        results.append("🚨 Возможное использование омографов")
         risk_score += 5
 
-    #Длина URL
-    if len(url) > 120:
+    # 12. Длина URL
+    if len(url) > 75:
         results.append("⚠️ Очень длинный URL")
         risk_score += 2
     else:
         results.append("✅ Размер URL нормальный")
 
-    #Поддомены
+    # 13. Поддомены
     subdomains = extracted.subdomain.split(".") if extracted.subdomain else []
     if len(subdomains) > 3:
         results.append("⚠️ Слишком много поддоменов")
-        risk_score += 2
+        risk_score += 3
 
-    #Редиректы
-    try:
-        response = requests.get(
-            url,
-            timeout=5,
-            allow_redirects=True,
-            headers={"User-Agent": "Mozilla/5.0"}
-        )
+    # 14. Проверка редиректов и подозрительных слов
+    print("🌐 Идет анализ ссылки...")
+    response, html = fetch_page(url)
+
+    if response is not None and html is not None:
+        # Редиректы
         if len(response.history) > 2:
             results.append("⚠️ Множественные редиректы")
-            risk_score += 2
-    except requests.RequestException:
-        results.append("❌ Сайт недоступен")
+            risk_score += 3
+
+        # 15. Подозрительные слова
+        page_results, page_risk = check_page_content(html)
+        results.extend(page_results)
+        risk_score += page_risk
+    else:
+        results.append("❌ Сайт недоступен или блокирует соединение")
         risk_score += 1
 
-    trust_level = max(0, 100 - min(risk_score, MAX_RISK_SCORE) * 5)
+    capped_risk = min(risk_score, MAX_RISK_SCORE)
+    risk_percent = (capped_risk / MAX_RISK_SCORE) * 100
+    trust_level = max(0, 100 - risk_percent)
 
     return {
         "results": results,
@@ -230,29 +378,29 @@ def analyze_url(url):
         "trust_level": trust_level
     }
 
+
 #ОТЧЁТ
 
 def print_report(analysis):
-
     if "error" in analysis:
         print("❌", analysis["error"])
         return
-
-    print("\nРЕЗУЛЬТАТ ПРОВЕРКИ\n")
-
+    print("РЕЗУЛЬТАТ ПРОВЕРКИ")
     for line in analysis["results"]:
         print(line)
-
-    print("\nИТОГ")
+    print("ИТОГ")
 
     risk = analysis["risk_score"]
+    risk_percent = min(100, int((risk / MAX_RISK_SCORE) * 100))
+
+    print(f"📊 Уровень риска: {risk_percent}%")
 
     if risk >= 10:
         print("🚨 ВЫСОКИЙ РИСК! Возможный фишинг.")
     elif risk >= 5:
-        print("⚠️ СРЕДНИЙ РИСК. Плохая защита сайта. Будьте осторожны.")
+        print("⚠️ СРЕДНИЙ РИСК. Будьте осторожны.")
     else:
-        print("✅ Низкий риск. Сайт безопасен")
+        print("✅ НИЗКИЙ РИСК. Сайт безопасен.")
 
     print(f"🔐 Уровень доверия: {analysis['trust_level']:.0f}%")
 
@@ -260,7 +408,6 @@ def print_report(analysis):
 #MAIN
 
 if __name__ == "__main__":
-
     qr_result = scan_qr_from_camera()
 
     if qr_result:
