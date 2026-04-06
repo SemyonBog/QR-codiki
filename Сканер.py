@@ -260,7 +260,7 @@ def check_page_content(html):
     )
     if hidden_iframes:
         results.append("🚨 Обнаружены скрытые iframe")
-        risk_score += 3
+        risk_score += 5
 
     # 4. Подозрительные скрипты
     external_scripts = re.findall(r'<script[^>]*src\s*=\s*["\']([^"\']+)["\']', html_lower)
@@ -269,7 +269,7 @@ def check_page_content(html):
     )]
     if suspicious_scripts:
         results.append(f"🚨 Подозрительные внешние скрипты: {len(suspicious_scripts)}")
-        risk_score += 3
+        risk_score += 5
 
     # 5. Отправка данных на другой сервер
     form_actions = re.findall(r'<form[^>]*action\s*=\s*["\']([^"\']+)["\']', html_lower)
