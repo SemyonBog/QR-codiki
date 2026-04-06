@@ -251,7 +251,7 @@ def check_page_content(html):
     )
     if password_inputs:
         results.append(f"⚠️ Найдено полей ввода пароля: {len(password_inputs)}")
-        risk_score += 2
+        risk_score += 1
 
     # 3. Скрытые iframe
     hidden_iframes = re.findall(
