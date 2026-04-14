@@ -295,7 +295,7 @@ def analyze_url(url):
     ssl_result = check_ssl_certificate(parsed.hostname or domain)
     if ssl_result is False:
         results.append("🚨 Проблема с SSL сертификатом")
-        risk_score += 3
+        risk_score += 4
     elif ssl_result is None:
         results.append("⚠️ Не удалось проверить SSL")
         risk_score += 2
@@ -395,7 +395,7 @@ def print_report(analysis):
 
     print(f"📊 Уровень риска: {risk_percent}%")
 
-    if risk >= 9:
+    if risk >= 10:
         print("🚨 ВЫСОКИЙ РИСК! Возможный фишинг.")
     elif risk >= 5:
         print("⚠️ СРЕДНИЙ РИСК. Будьте осторожны.")
