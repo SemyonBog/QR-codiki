@@ -395,7 +395,7 @@ def print_report(analysis):
 
     print(f"📊 Уровень риска: {risk_percent}%")
 
-    if risk >= 10:
+    if risk >= 9:
         print("🚨 ВЫСОКИЙ РИСК! Возможный фишинг.")
     elif risk >= 5:
         print("⚠️ СРЕДНИЙ РИСК. Будьте осторожны.")
