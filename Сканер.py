@@ -338,7 +338,7 @@ def analyze_url(url):
         risk_score += 5
 
     # 12. Длина URL
-    if len(url) > 75:
+    if len(url) > 150:
         results.append("⚠️ Очень длинный URL")
         risk_score += 2
     else:
