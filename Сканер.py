@@ -260,7 +260,7 @@ def check_page_content(html):
     )
     if hidden_iframes:
         results.append("🚨 Обнаружены скрытые iframe")
-        risk_score += 5
+        risk_score += 4
 
     # 4. Подозрительные скрипты
     external_scripts = re.findall(r'<script[^>]*src\s*=\s*["\']([^"\']+)["\']', html_lower)
@@ -269,7 +269,7 @@ def check_page_content(html):
     )]
     if suspicious_scripts:
         results.append(f"🚨 Подозрительные внешние скрипты: {len(suspicious_scripts)}")
-        risk_score += 5
+        risk_score += 4
 
     # 5. Отправка данных на другой сервер
     form_actions = re.findall(r'<form[^>]*action\s*=\s*["\']([^"\']+)["\']', html_lower)
@@ -305,7 +305,7 @@ def analyze_url(url):
     # 7. IP вместо домена
     if is_ip_address(url):
         results.append("⚠️ Используется IP вместо домена")
-        risk_score += 2
+        risk_score += 3
     else:
         results.append("✅ IP не используется")
 
@@ -313,7 +313,7 @@ def analyze_url(url):
     full_host = parsed.hostname
     if full_host in SHORTENERS or domain in SHORTENERS:
         results.append("🚨 Используется сокращение ссылок")
-        risk_score += 5
+        risk_score += 4
     else:
         results.append("✅ Сокращение не используется")
 
