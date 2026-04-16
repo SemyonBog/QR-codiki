@@ -313,7 +313,7 @@ def analyze_url(url):
     full_host = parsed.hostname
     if full_host in SHORTENERS or domain in SHORTENERS:
         results.append("🚨 Используется сокращение ссылок")
-        risk_score += 4
+        risk_score += 5
     else:
         results.append("✅ Сокращение не используется")
 
