@@ -276,7 +276,7 @@ def check_page_content(html):
     external_forms = [a for a in form_actions if a.startswith("http")]
     if external_forms:
         results.append("⚠️ Форма отправляет данные на внешний сервер")
-        risk_score += 2
+        risk_score += 3
 
     return results, risk_score
 
